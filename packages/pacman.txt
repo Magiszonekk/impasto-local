@@ -1,0 +1,5 @@
+# Dodatkowe paczki z repo Arch (magiszonek), poza listą autora impasto.
+filezilla
+zed                          # domyślny edytor tekstu
+fuse2                        # discordrive (AppImage)
+fuse3                        # discordrive: dysk wirtualny (fusermount3)

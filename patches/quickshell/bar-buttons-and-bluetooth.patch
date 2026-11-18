@@ -1,0 +1,74 @@
+diff --git a/home/.config/quickshell/services/ModuleService.qml b/home/.config/quickshell/services/ModuleService.qml
+index bf95027..d05bc23 100644
+--- a/home/.config/quickshell/services/ModuleService.qml
++++ b/home/.config/quickshell/services/ModuleService.qml
+@@ -88,7 +88,7 @@ Singleton {
+     // Capture is what the capture key does: the photo is taken at once, so
+     // whatever the island has open is in it.
+     readonly property var buttonIds: ["launcher", "overview", "controls", "capture",
+-        "appearance", "notes", "board", "games", "keys", "packages", "settings", "session"]
++        "appearance", "notes", "board", "games", "keys", "packages", "settings", "session", "sudo", "speedtest", "vpn"]
+ 
+     readonly property var buttons: {
+         const out = {}
+@@ -97,6 +97,27 @@ Singleton {
+                 out[id] = { name: "Control centre", glyph: "󰨚", panel: "controls" }
+                 continue
+             }
++            // Lokalny dodatek: okno sudo bez hasła (~/.local/bin/sudo-window).
++            if (id === "sudo") {
++                out[id] = { name: "Sudo window", glyph: "󰌾",
++                            action: () => Quickshell.execDetached(["kitty", "--class", "impasto-sudo",
++                                "--title", "sudo-window", Quickshell.env("HOME") + "/.local/bin/sudo-window"]) }
++                continue
++            }
++            // Lokalny dodatek: test prędkości łącza (~/.local/bin/speedtest-window).
++            if (id === "speedtest") {
++                out[id] = { name: "Speed test", glyph: "󰓅",
++                            action: () => Quickshell.execDetached(["kitty", "--class", "impasto-speedtest",
++                                "--title", "speedtest", Quickshell.env("HOME") + "/.local/bin/speedtest-window"]) }
++                continue
++            }
++            // Lokalny dodatek: wybór VPN z profili NetworkManagera (~/.local/bin/vpn-window).
++            if (id === "vpn") {
++                out[id] = { name: "VPN", glyph: "󰖂",
++                            action: () => Quickshell.execDetached(["kitty", "--class", "impasto-vpn",
++                                "--title", "vpn", Quickshell.env("HOME") + "/.local/bin/vpn-window"]) }
++                continue
++            }
+             if (id === "capture") {
+                 out[id] = { name: "Capture", glyph: "󰹑",
+                             action: () => CaptureService.open("", "", "", 0) }
+@@ -286,7 +307,7 @@ Singleton {
+         case "netspeed":
+             return `↓ ${StatsService.rate(StatsService.networkDown)}  ↑ ${StatsService.rate(StatsService.networkUp)}`
+         case "bluetooth":
+-            return BluetoothService.summary
++            return root.clip(BluetoothService.summary, root.bluetoothChars)
+         case "calendar":
+             return Tr.date(root.today.date, "ddd d")
+         }
+@@ -298,6 +319,23 @@ Singleton {
+         precision: SystemClock.Minutes
+     }
+ 
++    // Local tweak: the bar shows only the first N characters of the Bluetooth
++    // device name; the full name is in the chip's tooltip (`BarChip.qml`).
++    readonly property int bluetoothChars: 10
++
++    function clip(text: string, max: int): string {
++        return text.length > max ? text.slice(0, max).replace(/\s+$/, "") + "…" : text
++    }
++
++    // Full text for a chip's tooltip, "" when the figure already says it all.
++    function tipOf(id: string): string {
++        if (id === "bluetooth") {
++            const full = BluetoothService.summary
++            return full.length > root.bluetoothChars ? full : ""
++        }
++        return ""
++    }
++
+     // Maximum width for text figures (track title, network or device name)
+     // before they are elided.
+     function figureLimit(id: string): int {

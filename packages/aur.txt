@@ -1,0 +1,2 @@
+# Dodatkowe paczki z AUR (magiszonek).
+brave-bin                    # domyślna przeglądarka
