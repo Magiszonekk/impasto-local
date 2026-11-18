@@ -177,6 +177,10 @@ add_mount "$UBUNTU_UUID" /mnt/ubuntu ext4 "rw,nofail,noatime,x-systemd.device-ti
 sudo systemctl daemon-reload
 sudo mount -a || warn "mount -a reported an error, check /etc/fstab"
 
+step "Phone over adb (Wireless debugging, mDNS via avahi)"
+sudo pacman -S --needed --noconfirm avahi
+sudo systemctl enable --now avahi-daemon
+
 step "zram"
 if [[ ! -e /etc/systemd/zram-generator.conf ]]; then
     printf '[zram0]\nzram-size = 4096\ncompression-algorithm = zstd\n' \

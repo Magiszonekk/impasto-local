@@ -3,3 +3,7 @@ filezilla
 zed                          # default text editor
 fuse2                        # discordrive (AppImage)
 fuse3                        # discordrive: virtual drive (fusermount3)
+android-tools                # phone: adb
+scrcpy                       # phone: screen mirroring
+avahi                        # phone: mDNS for adb wireless debugging
+libnotify                    # phone: notify-send

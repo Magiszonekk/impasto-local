@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Speed test
+Comment=Test prędkości łącza
+Exec=sh -c "exec kitty --class impasto-speedtest --title speedtest \\"\\$HOME/.local/bin/speedtest-window\\""
+Icon=network-wireless
+Terminal=false
+Categories=Network;
+Keywords=speedtest;internet;ping;prędkość;
+StartupWMClass=impasto-speedtest

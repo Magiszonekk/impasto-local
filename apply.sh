@@ -39,6 +39,10 @@ fi
 
 [[ $MODE == --scripts-only ]] && exit 0
 
+step "Desktop entries"
+mkdir -p "$HOME/.local/share/applications"
+install -m 644 "$HERE/applications/impasto-speedtest.desktop" "$HOME/.local/share/applications/"; echo "ok  impasto-speedtest.desktop"
+
 step "Hyprland: custom/"
 mkdir -p "$HYPR/custom"
 for f in "$HERE"/hypr-custom/*.lua; do

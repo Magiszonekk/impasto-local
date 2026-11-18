@@ -14,3 +14,11 @@ popup("sudo-window",      "impasto-sudo",      560,  240)
 popup("btop-window",      "impasto-btop",      1100, 700)
 popup("speedtest-window", "impasto-speedtest", 1100, 560)
 popup("vpn-window",       "impasto-vpn",       460,  260)
+
+-- · phone (scrcpy)
+hl.window_rule({
+    name  = "scrcpy-float",
+    match = { class = "^(scrcpy)$" },
+
+    float = true,
+})

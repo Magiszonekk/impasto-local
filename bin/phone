@@ -1,0 +1,30 @@
+#!/bin/bash
+# phone [pair] - łączy z telefonem przez Wireless debugging i odpala scrcpy
+export ADB_MDNS_OPENSCREEN=0
+adb start-server >/dev/null 2>&1
+
+# Bez terminala (przycisk na pasku, skrót) błędy idą jako powiadomienie.
+fail() {
+    if [ -t 0 ]; then echo "$1"; read -rp "Enter..."; else notify-send -a phone "Telefon" "$1"; fi
+    exit 1
+}
+
+find_svc() { adb mdns services 2>/dev/null | awk -v t="$1" '$2==t {print $3; exit}'; }
+
+if [ "$1" = pair ]; then
+    addr=$(find_svc _adb-tls-pairing._tcp)
+    if [ -z "$addr" ]; then
+        echo "Na telefonie: Opcje programisty → Debugowanie bezprzewodowe → Sparuj urządzenie za pomocą kodu"
+        read -rp "Adres IP:port do parowania: " addr
+    fi
+    adb pair "$addr" || exit 1
+    shift
+fi
+
+if ! adb devices | awk 'NR>1 && $2=="device"' | grep -q .; then
+    addr=$(find_svc _adb-tls-connect._tcp)
+    [ -z "$addr" ] && fail "Nie widzę telefonu. Włącz Debugowanie bezprzewodowe (ta sama sieć WiFi)."
+    adb connect "$addr" >/dev/null 2>&1 || fail "Nie udało się połączyć z $addr (parowanie zerwane? uruchom: phone pair)"
+fi
+
+exec scrcpy --stay-awake --turn-screen-off --window-title Phone "$@"

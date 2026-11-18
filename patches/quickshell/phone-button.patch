@@ -1,0 +1,101 @@
+diff --git a/home/.config/quickshell/bar/widgets/BarChip.qml b/home/.config/quickshell/bar/widgets/BarChip.qml
+index 332cf0f..a0d41fc 100644
+--- a/home/.config/quickshell/bar/widgets/BarChip.qml
++++ b/home/.config/quickshell/bar/widgets/BarChip.qml
+@@ -116,6 +116,9 @@ Item {
+         font.family: Theme.fontMono
+         font.pixelSize: Math.round(Theme.capsuleHeight * 0.44)
+         color: Theme.text
++        // Local addition: phone greyed out when adb does not see it.
++        opacity: root.moduleId === "phone" && !PhoneService.connected ? 0.3 : 1
++        Behavior on opacity { NumberAnimation { duration: Theme.durationFast } }
+     }
+ 
+     ChipFace {
+diff --git a/home/.config/quickshell/qmldir b/home/.config/quickshell/qmldir
+index 3f47dbe..90dff50 100644
+--- a/home/.config/quickshell/qmldir
++++ b/home/.config/quickshell/qmldir
+@@ -64,6 +64,7 @@ singleton CameraService      1.0 services/CameraService.qml
+ singleton TrayService        1.0 services/TrayService.qml
+ singleton PrivacyService     1.0 services/PrivacyService.qml
+ singleton SunsetService      1.0 services/SunsetService.qml
++singleton PhoneService       1.0 services/PhoneService.qml
+ singleton IdleService        1.0 services/IdleService.qml
+ singleton GithubService      1.0 services/GithubService.qml
+ singleton PackagesService    1.0 services/PackagesService.qml
+diff --git a/home/.config/quickshell/services/ModuleService.qml b/home/.config/quickshell/services/ModuleService.qml
+index 5969fba..78062ee 100644
+--- a/home/.config/quickshell/services/ModuleService.qml
++++ b/home/.config/quickshell/services/ModuleService.qml
+@@ -88,7 +88,7 @@ Singleton {
+     // Capture is what the capture key does: the photo is taken at once, so
+     // whatever the island has open is in it.
+     readonly property var buttonIds: ["launcher", "overview", "controls", "capture",
+-        "appearance", "notes", "board", "games", "keys", "packages", "settings", "session", "sudo", "speedtest", "vpn"]
++        "appearance", "notes", "board", "games", "keys", "packages", "settings", "session", "sudo", "phone", "speedtest", "vpn"]
+ 
+     readonly property var buttons: {
+         const out = {}
+@@ -104,6 +104,13 @@ Singleton {
+                                 "--title", "sudo-window", Quickshell.env("HOME") + "/.local/bin/sudo-window"]) }
+                 continue
+             }
++            // Local addition: phone over adb + scrcpy (~/.local/bin/phone); greyed out when not detected.
++            if (id === "phone") {
++                out[id] = { name: "Phone", glyph: "\u{F011C}",
++                            action: () => Quickshell.execDetached(["hyprctl", "dispatch",
++                                "hl.dsp.exec_cmd(\"" + Quickshell.env("HOME") + "/.local/bin/phone\")"]) }
++                continue
++            }
+             // Local addition: link speed test (~/.local/bin/speedtest-window).
+             if (id === "speedtest") {
+                 out[id] = { name: "Speed test", glyph: "󰓅",
+diff --git a/home/.config/quickshell/services/PhoneService.qml b/home/.config/quickshell/services/PhoneService.qml
+new file mode 100644
+index 0000000..7e6791f
+--- /dev/null
++++ b/home/.config/quickshell/services/PhoneService.qml
+@@ -0,0 +1,29 @@
++pragma Singleton
++
++import QtQuick
++import Quickshell
++import Quickshell.Io
++
++// Lokalny dodatek: czy telefon jest widoczny w adb (Wireless debugging).
++// Odpytuje `adb devices` co kilka sekund; `connected` gaśnie, gdy telefon
++// zniknie z sieci albo parowanie zostanie zerwane.
++Singleton {
++    id: root
++
++    property bool connected: false
++
++    readonly property Process probe: Process {
++        command: ["sh", "-c", "ADB_MDNS_OPENSCREEN=0 timeout 5 adb devices 2>/dev/null | awk 'NR>1 && $2==\"device\"' | wc -l"]
++        running: true
++        stdout: StdioCollector {
++            onStreamFinished: root.connected = parseInt(text.trim()) > 0
++        }
++    }
++
++    readonly property Timer poll: Timer {
++        interval: 5000
++        running: true
++        repeat: true
++        onTriggered: if (!root.probe.running) root.probe.running = true
++    }
++}
+diff --git a/home/.config/quickshell/shell.qml b/home/.config/quickshell/shell.qml
+index afa9cc0..0ef275f 100644
+--- a/home/.config/quickshell/shell.qml
++++ b/home/.config/quickshell/shell.qml
+@@ -65,6 +65,8 @@ ShellRoot {
+         // Probes the monitor source, so the first take is not silent, and
+         // picks up a take left running by a previous shell.
+         void RecorderService.available
++        // Local addition: checks whether the phone is visible in adb.
++        void PhoneService.connected
+         // Restores the night light.
+         void SunsetService.available
+         // Arms the idle monitors.

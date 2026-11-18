@@ -5,6 +5,8 @@ local mainMod = "SUPER"
 -- · applications
 hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("spotify"), { description = "Applications · Open Spotify" })
 hl.bind(mainMod .. " + D", hl.dsp.exec_cmd("vesktop"), { description = "Applications · Open Discord (Vesktop)" })
+hl.bind(mainMod .. " + ALT + P", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/phone"),
+        { description = "Applications · Phone (scrcpy over adb)" })
 hl.bind("CTRL + SHIFT + Escape", hl.dsp.exec_cmd("kitty --class impasto-btop -e btop"),
         { description = "Applications · Open btop" })
 
