@@ -8,6 +8,17 @@ hl.bind(mainMod .. " + D", hl.dsp.exec_cmd("vesktop"), { description = "Applicat
 hl.bind("CTRL + SHIFT + Escape", hl.dsp.exec_cmd("kitty --class impasto-btop -e btop"),
         { description = "Applications · Open btop" })
 
+-- · notes move from SUPER+S (the author's) to SUPER+N; SUPER+S becomes my
+-- · scratchpad toggle, SUPER+ALT+S sends the focused window into it.
+-- · (the author's own scratchpad stays on SUPER+Z / SUPER+SHIFT+Z)
+hl.unbind(mainMod .. " + S")
+hl.bind(mainMod .. " + N", hl.dsp.global("quickshell:notes"),
+        { description = "Shell · Open the notes" })
+hl.bind(mainMod .. " + S", hl.dsp.workspace.toggle_special("scratchpad"),
+        { description = "Workspaces · Show or hide the scratchpad (SUPER+S)" })
+hl.bind(mainMod .. " + ALT + S", hl.dsp.window.move({ workspace = "special:scratchpad" }),
+        { description = "Workspaces · Move the window to the scratchpad (SUPER+ALT+S)" })
+
 -- · fullscreen without the app knowing (the browser keeps its tabs). The
 -- · author's bind has to be removed, since the one from custom/ only runs after it.
 hl.unbind(mainMod .. " + F")
