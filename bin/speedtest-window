@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Okno testu prędkości z prędkościomierzami (jak w omarchy).
+"""Speed test window with gauges (as in omarchy).
 
-Domyślnie mierzy przez speedtest-cli (serwer wybierany automatycznie, wskazówka
-rośnie na żywo z liczników jego wątków). Wynik to średnia z okna pełnej
-równoległości (po rozbiegu, do startu ostatniego żądania), a nie suma bajtów
-przez cały czas jak w samym speedtest-cli, który zaniża wynik rozbiegiem i
-wygasaniem wątków na końcu. Gdy speedtest-cli
-nie istnieje albo zawiedzie, przechodzi na speed.cloudflare.com z żywą
-wskazówką. Na końcu zostają łuki Download i Upload obok siebie oraz ping.
+By default it measures through speedtest-cli (the server is picked
+automatically, the needle rises live from the counters of its threads). The
+result is the average over the window of full parallelism (after the ramp-up,
+until the last request starts), not the sum of bytes over the whole time as in
+speedtest-cli itself, which understates the result with its ramp-up and with
+the threads winding down at the end. When speedtest-cli is missing or fails,
+it falls back to speed.cloudflare.com with a live needle. The final screen
+shows the Download and Upload arcs side by side, plus the ping.
 
-  speedtest-window              speedtest-cli, w razie awarii Cloudflare
-  speedtest-window --cloudflare tylko Cloudflare
+  speedtest-window              speedtest-cli, Cloudflare on failure
+  speedtest-window --cloudflare Cloudflare only
 """
 import http.client
 import math
@@ -26,13 +27,13 @@ HOST = "speed.cloudflare.com"
 STREAMS = 4
 PHASE_SECONDS = 8.0
 WARMUP = 1.5
-GAUGE_MAX = 1000.0  # Mb/s na końcu skali (skala pierwiastkowa)
+GAUGE_MAX = 1000.0  # Mb/s at the end of the scale (square-root scale)
 
 R, G, B, C, D, BOLD, X = ("\033[31m", "\033[32m", "\033[34m", "\033[36m",
                           "\033[2m", "\033[1m", "\033[0m")
 
 CTX = ssl.create_default_context()
-SOURCE = HOST  # opis serwera pokazywany w nagłówku, aktualizowany w trakcie
+SOURCE = HOST  # server description shown in the header, updated along the way
 
 
 class Refused(Exception):
@@ -44,7 +45,7 @@ class Meter:
         self.bytes = 0
         self.lock = threading.Lock()
         self.stop = False
-        self.error = None  # (kod HTTP, Retry-After) gdy serwer odmawia
+        self.error = None  # (HTTP code, Retry-After) when the server refuses
 
     def add(self, n):
         with self.lock:
@@ -106,13 +107,13 @@ def ping():
         c.getresponse().read()
         times.append((time.perf_counter() - t) * 1000)
     c.close()
-    times = times[1:]  # pierwszy zawiera handshake TLS
+    times = times[1:]  # the first one includes the TLS handshake
     return statistics.median(times), (max(times) - min(times))
 
 
-# ── rysowanie ───────────────────────────────────────────────────────────────
+# ── drawing ─────────────────────────────────────────────────────────────────
 
-W, H = 25, 11  # promień w kolumnach (komórka ~2:1) i wysokość łuku
+W, H = 25, 11  # radius in columns (cell ~2:1) and the arc height
 
 
 def frac(v):
@@ -120,7 +121,7 @@ def frac(v):
 
 
 def gauge(value, color):
-    """Półokrągły łuk z podziałką i wskazówką. Zwraca listę linii."""
+    """A semicircular arc with a scale and a needle. Returns a list of lines."""
     cols = W * 2 + 1
     grid = [[" "] * cols for _ in range(H + 1)]
     cx, cy = W, H
@@ -160,15 +161,15 @@ def gauge(value, color):
     return ["".join(row) for row in grid]
 
 
-BLOCK_W = 2 * W + 1   # szerokość łuku w kolumnach
-BELOW = 5             # wiersze pod liczbą: do 3 wyników, pasek/odstęp, podpowiedź
-BLOCK_H = 3 + (H + 1) + 2 + BELOW  # stała wysokość, żeby nic nie skakało
+BLOCK_W = 2 * W + 1   # arc width in columns
+BELOW = 5             # rows under the number: up to 3 results, bar/gap, hint
+BLOCK_H = 3 + (H + 1) + 2 + BELOW  # fixed height so nothing jumps
 
 ANSI = re.compile(r"\033\[[0-9;]*m")
 
 
 def centred(text, pad, width=None):
-    """Wyśrodkowuje wiersz względem łuku albo podanej szerokości (bez kodów ANSI)."""
+    """Centres a row relative to the arc or to a given width (ignoring ANSI codes)."""
     n = len(ANSI.sub("", text))
     return pad + " " * max(0, ((width or BLOCK_W) - n) // 2) + text
 
@@ -190,11 +191,11 @@ def draw(title, value, color, lines_below):
     sys.stdout.flush()
 
 
-GAP = 6  # odstęp między łukami na ekranie końcowym
+GAP = 6  # gap between the arcs on the final screen
 
 
 def draw_final(down, up, lines_below, source=None):
-    """Ekran końcowy: łuki Download i Upload obok siebie, wyniki pod spodem."""
+    """Final screen: the Download and Upload arcs side by side, results below."""
     cols, lines = os.get_terminal_size() if sys.stdout.isatty() else (80, 24)
     total = BLOCK_W * 2 + GAP
     pad = " " * max(0, (cols - total) // 2)
@@ -248,7 +249,7 @@ def run_phase(name, color, worker, results):
             inst = (b - window[0][1]) * 8 / 1e6 / (now - window[0][0])
         else:
             inst = 0.0
-        shown += (inst - shown) * 0.35  # wygładzanie wskazówki
+        shown += (inst - shown) * 0.35  # needle smoothing
         bar = int(now / PHASE_SECONDS * 40)
         prog = f"{color}{'━' * bar}{X}{D}{'━' * (40 - bar)}{X}"
         draw(f"{BOLD}{name}{X}", shown, color, results + ["  " + prog])
@@ -263,7 +264,7 @@ def run_phase(name, color, worker, results):
 
 
 def load_speedtest():
-    """Importuje moduł speedtest-cli (paczka systemowa, może być poza sys.path)."""
+    """Imports the speedtest-cli module (a system package, may be outside sys.path)."""
     try:
         import speedtest
         return speedtest
@@ -280,10 +281,11 @@ def load_speedtest():
 
 
 def plateau(samples, last_start, end_el):
-    """Średnia prędkość (Mb/s) z okna pełnej równoległości: od końca rozbiegu
-    (WARMUP) do startu ostatniego żądania z kolejki speedtest-cli, bo potem
-    zostają same wygasające wątki. samples: lista (czas od startu fazy, bajty).
-    Zwraca None, gdy okno jest za krótkie."""
+    """Average speed (Mb/s) over the window of full parallelism: from the end of
+    the ramp-up (WARMUP) to the start of the last request in speedtest-cli's
+    queue, since after that only winding-down threads remain. samples: a list
+    of (time since the phase started, bytes). Returns None if the window is
+    too short."""
     t1 = min(last_start, end_el) if last_start is not None else end_el
     t0 = WARMUP
     if t1 - t0 < 1.0 or len(samples) < 2:
@@ -304,13 +306,13 @@ def plateau(samples, last_start, end_el):
 
 
 def run_cli():
-    """Test przez moduł speedtest-cli z żywą wskazówką: liczniki bajtów bierzemy
-    z jego wątków pobierania i wysyłania. Zwraca słownik albo None."""
+    """Test through the speedtest-cli module with a live needle: the byte
+    counters come from its download and upload threads. Returns a dict or None."""
     global SOURCE
     lib = load_speedtest()
     if lib is None:
         return None
-    SOURCE = "speedtest-cli · wybieranie serwera..."
+    SOURCE = "speedtest-cli · choosing a server..."
     tracked = {"down": [], "up": []}
 
     class Down(lib.HTTPDownloader):
@@ -328,7 +330,7 @@ def run_cli():
           "finished": 0, "total": 1, "last_start": None}
 
     def on_request(i, n, start=False, end=False):
-        """Callback speedtest-cli: faza kończy się po ostatnim żądaniu albo po 10 s."""
+        """speedtest-cli callback: the phase ends after the last request or after 10 s."""
         st["total"] = n
         if start and i == n - 1:
             st["last_start"] = time.perf_counter() - st["start"]
@@ -363,7 +365,7 @@ def run_cli():
     samples, final = [], {}
 
     def finish(phase, lib_value):
-        """Wynik fazy: z okna pełnej równoległości, a bez niego z biblioteki."""
+        """The phase result: from the full-parallelism window, else from the library."""
         end_el = samples[-1][0] if samples else 0.0
         v = plateau(samples, st["last_start"], end_el)
         final[phase] = v if v is not None else lib_value
@@ -384,7 +386,7 @@ def run_cli():
             last = phase
         if phase == "ping":
             draw(f"{BOLD}Ping{X}", 0, C,
-                 [f"  {spin[int(now * 10) % len(spin)]}  szukanie najlepszego serwera"])
+                 [f"  {spin[int(now * 10) % len(spin)]}  looking for the best server"])
         else:
             color, name = (G, "Download") if phase == "down" else (B, "Upload")
             el = time.perf_counter() - st["start"]
@@ -411,7 +413,7 @@ def run_cli():
 
 
 def run_cloudflare():
-    """Test przez Cloudflare. Rzuca Refused (429) albo OSError (brak sieci)."""
+    """Test through Cloudflare. Raises Refused (429) or OSError (no network)."""
     global SOURCE
     SOURCE = HOST
     results = []
@@ -436,21 +438,21 @@ def main():
             except Refused as e:
                 code, retry = e.args[0]
                 sys.stdout.write("\033[2J\033[H")
-                print(f"\n  {R}Serwer odmówił pomiaru (HTTP {code}){X}")
+                print(f"\n  {R}The server refused the measurement (HTTP {code}){X}")
                 if code == 429:
-                    when = f" Spróbuj za ok. {int(retry) // 60} min." if (retry or "").isdigit() else ""
-                    print(f"  {D}Limit zapytań Cloudflare dla Twojego IP.{when}{X}")
+                    when = f" Try again in about {int(retry) // 60} min." if (retry or "").isdigit() else ""
+                    print(f"  {D}Cloudflare's request limit for your IP.{when}{X}")
                 input("\n  Press Enter to close... ")
                 return
             except Exception as e:
                 sys.stdout.write("\033[2J\033[H")
-                print(f"\n  {R}Brak połączenia (speedtest-cli i {HOST}){X}\n  {D}{e}{X}")
+                print(f"\n  {R}No connection (speedtest-cli and {HOST}){X}\n  {D}{e}{X}")
                 input("\n  Press Enter to close... ")
                 return
         jit = f"  {D}(jitter {res['jitter']:.0f} ms){X}" if res["jitter"] is not None else ""
         info = [f"  Ping       {BOLD}{res['ping']:.0f} ms{X}{jit}"]
         if fell_back:
-            info.append(f"  {D}speedtest-cli zawiódł, wynik z Cloudflare{X}")
+            info.append(f"  {D}speedtest-cli failed, result from Cloudflare{X}")
         draw_final(res["down"], res["up"], info + ["", f"{D}Press any key to close{X}"],
                    res["source"])
         os.system("stty -echo -icanon min 1 2>/dev/null")

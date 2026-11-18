@@ -1,10 +1,10 @@
 #!/bin/sh
-# Tymczasowe sudo bez hasła dla użytkownika, który wywołał sudo.
-# Uruchom: sudo sh ~/sw.sh [minuty, domyślnie 60]
-# Reguła leży w /run (tmpfs), więc znika też przy restarcie.
-# Wymaga /etc/sudoers.d/98-sudo-window-include z "@includedir /run/sudo-window".
+# Temporary passwordless sudo for the user who called sudo.
+# Run: sudo sh ~/sw.sh [minutes, default 60]
+# The rule lives in /run (tmpfs), so it also disappears on reboot.
+# Needs /etc/sudoers.d/98-sudo-window-include with "@includedir /run/sudo-window".
 set -e
-U=${SUDO_USER:?uruchom przez sudo}
+U=${SUDO_USER:?run via sudo}
 MIN=${1:-60}
 D=/run/sudo-window
 F=$D/$U
@@ -16,4 +16,4 @@ install -m 440 -o root -g root "$T" "$F"
 rm -f "$T"
 systemctl stop sudo-window-off.timer 2>/dev/null || true
 systemd-run --on-active="${MIN}min" --unit=sudo-window-off rm -f "$F"
-echo "OK: sudo bez hasła do $(date -d "+${MIN} min" +%H:%M)"
+echo "OK: passwordless sudo until $(date -d "+${MIN} min" +%H:%M)"

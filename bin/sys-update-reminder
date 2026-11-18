@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Przypominajka o miesięcznym sys-update. Nic nie aktualizuje.
-# Powiadamia, gdy przypięty miesiąc w mirrorlist jest starszy niż bieżący.
-# Odpalana codziennie przez sys-update-reminder.timer (Persistent=true, więc
-# jeśli komputer był wyłączony w 1. dnia miesiąca, przypomni po starcie).
+# Reminder about the monthly sys-update. Updates nothing.
+# Notifies when the pinned month in mirrorlist is older than the current one.
+# Run daily by sys-update-reminder.timer (Persistent=true, so if the computer
+# was off on the 1st of the month, it reminds after boot).
 set -u
 pin=$(grep -oE 'archive\.archlinux\.org/repos/[0-9]{4}/[0-9]{2}' "${MIRRORLIST:-/etc/pacman.d/mirrorlist}" | head -1 | cut -d/ -f3-) || exit 0
-[[ -n $pin ]] || exit 0                     # brak przypięcia (rolling): nic do roboty
+[[ -n $pin ]] || exit 0                     # not pinned (rolling): nothing to do
 now=$(date +%Y/%m)
-[[ $pin < $now ]] || exit 0                 # już zaktualizowane w tym miesiącu
+[[ $pin < $now ]] || exit 0                 # already updated this month
 
-msg="Repozytoria stoją na ${pin}. Uruchom: sys-update"
+msg="The repositories are pinned to ${pin}. Run: sys-update"
 state=${XDG_STATE_HOME:-$HOME/.local/state}/sys-update-reminder
 mkdir -p "$state"
 echo "$(date -Is) $msg" > "$state/last"
 
-notify-send -u normal -i system-software-update "Czas na aktualizację systemu" "$msg" 2>/dev/null || true
+notify-send -u normal -i system-software-update "Time for a system update" "$msg" 2>/dev/null || true

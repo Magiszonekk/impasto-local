@@ -1,5 +1,5 @@
 [Unit]
-Description=Codzienne wywołanie tools-autoupdate (skrypt sam pilnuje odstępu 3 dni)
+Description=Daily run of tools-autoupdate (the script enforces the 3-day interval itself)
 
 [Timer]
 OnCalendar=*-*-* 12:30:00

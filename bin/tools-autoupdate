@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Automatyczna aktualizacja Hermesa i herdr (nie dotyka pacmana ani AUR; to robi sys-update).
-# Odpalana codziennie przez tools-autoupdate.timer, ale faktycznie sprawdza tylko
-# co INTERVAL_DAYS dni (domyślnie 3), więc wyłączony komputer nic nie psuje.
+# Automatic update of Hermes and herdr (does not touch pacman or the AUR; sys-update does that).
+# Run daily by tools-autoupdate.timer, but it only really checks every
+# INTERVAL_DAYS days (default 3), so a computer that was off breaks nothing.
 #
-# Użycie:
-#   tools-autoupdate            normalnie (z uwzględnieniem odstępu)
-#   tools-autoupdate --force    ignoruje odstęp
-#   tools-autoupdate --dry      tylko pokazuje, co by zaktualizował
-#   tools-autoupdate hermes|herdr   tylko jedno narzędzie
+# Usage:
+#   tools-autoupdate            normally (respecting the interval)
+#   tools-autoupdate --force    ignores the interval
+#   tools-autoupdate --dry      only shows what it would update
+#   tools-autoupdate hermes|herdr   just one tool
 #
-# herdr: `herdr update` bez --handoff podmienia binarkę i NIE zamyka działających
-#   serwerów ani paneli z agentami. Nowy serwer wejdzie przy następnym ich restarcie.
-# Hermes: `hermes update --yes` robi backup stanu i restartuje gateway (drain-first).
+# herdr: `herdr update` without --handoff replaces the binary and does NOT close
+#   running servers or agent panes. The new server takes over on their next restart.
+# Hermes: `hermes update --yes` backs up the state and restarts the gateway (drain-first).
 set -u
 
 INTERVAL_DAYS=${INTERVAL_DAYS:-3}
@@ -27,7 +27,7 @@ for a in "$@"; do
         --force) FORCE=1 ;;
         --dry)   DRY=1; FORCE=1 ;;
         hermes|herdr) WHICH=$a ;;
-        *) echo "nieznany argument: $a" >&2; exit 2 ;;
+        *) echo "unknown argument: $a" >&2; exit 2 ;;
     esac
 done
 
@@ -35,52 +35,52 @@ log() { printf '%s %s\n' "$(date -Is)" "$*" | tee -a "$LOG"; }
 notify() { notify-send -u normal -i system-software-update "$1" "$2" 2>/dev/null || true; }
 trim_log() { [[ -f $LOG ]] && tail -n 300 "$LOG" > "$LOG.tmp" && mv "$LOG.tmp" "$LOG"; }
 
-# jedna instancja naraz
+# one instance at a time
 exec 9>"$STATE/lock"
-flock -n 9 || { echo "już działa inna instancja"; exit 0; }
+flock -n 9 || { echo "another instance is already running"; exit 0; }
 
 if (( ! FORCE )) && [[ -f $STAMP ]]; then
     age=$(( ( $(date +%s) - $(stat -c %Y "$STAMP") ) / 86400 ))
     (( age < INTERVAL_DAYS )) && exit 0
 fi
 
-# bez sieci nic nie robimy i nie ruszamy znacznika (spróbuje przy następnym uruchomieniu)
+# without a network we do nothing and leave the stamp alone (it will try on the next run)
 if ! curl -fsS -m 10 -o /dev/null https://herdr.dev/latest.json; then
-    log "brak sieci, pomijam"
+    log "no network, skipping"
     exit 0
 fi
 
 fail=0; changed=""
 
 update_herdr() {
-    command -v herdr >/dev/null || { log "herdr: nie zainstalowany, pomijam"; return; }
+    command -v herdr >/dev/null || { log "herdr: not installed, skipping"; return; }
     local cur new
     cur=$(herdr --version 2>/dev/null | awk '{print $2}')
     new=$(curl -fsS -m 15 https://herdr.dev/latest.json | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-    if [[ -z $new ]]; then log "herdr: nie umiem odczytać najnowszej wersji"; fail=1; return; fi
-    if [[ $cur == "$new" ]]; then log "herdr: aktualny ($cur)"; return; fi
+    if [[ -z $new ]]; then log "herdr: cannot read the latest version"; fail=1; return; fi
+    if [[ $cur == "$new" ]]; then log "herdr: up to date ($cur)"; return; fi
     if (( DRY )); then log "herdr: [dry] $cur -> $new"; return; fi
     log "herdr: $cur -> $new"
     if herdr update >>"$LOG" 2>&1; then
         changed+="herdr $cur→$(herdr --version 2>/dev/null | awk '{print $2}') "
     else
-        log "herdr: BŁĄD aktualizacji (szczegóły wyżej)"; fail=1
+        log "herdr: update ERROR (details above)"; fail=1
     fi
 }
 
 update_hermes() {
-    command -v hermes >/dev/null || { log "hermes: nie zainstalowany, pomijam"; return; }
+    command -v hermes >/dev/null || { log "hermes: not installed, skipping"; return; }
     local before after out
     before=$(hermes --version 2>/dev/null | head -1)
     out=$(hermes update --check 2>&1)
-    if grep -q "Up to date" <<<"$out"; then log "hermes: aktualny ($before)"; return; fi
-    if (( DRY )); then log "hermes: [dry] jest aktualizacja: $(tail -1 <<<"$out")"; return; fi
-    log "hermes: aktualizuję ($before)"
+    if grep -q "Up to date" <<<"$out"; then log "hermes: up to date ($before)"; return; fi
+    if (( DRY )); then log "hermes: [dry] an update is available: $(tail -1 <<<"$out")"; return; fi
+    log "hermes: updating ($before)"
     if hermes update --yes >>"$LOG" 2>&1; then
         after=$(hermes --version 2>/dev/null | head -1)
         changed+="hermes → ${after} "
     else
-        log "hermes: BŁĄD aktualizacji (szczegóły wyżej)"; fail=1
+        log "hermes: update ERROR (details above)"; fail=1
     fi
 }
 
@@ -88,7 +88,7 @@ update_hermes() {
 [[ $WHICH == all || $WHICH == hermes ]] && update_hermes
 
 (( DRY )) || { (( fail )) || touch "$STAMP"; }
-[[ -n $changed ]] && notify "Zaktualizowano narzędzia" "$changed"
-(( fail )) && notify "Błąd autoupdate" "Sprawdź: $LOG"
+[[ -n $changed ]] && notify "Tools updated" "$changed"
+(( fail )) && notify "Autoupdate error" "Check: $LOG"
 trim_log
 exit $fail

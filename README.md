@@ -1,93 +1,93 @@
 # impasto-local
 
-Moja nakładka na [impasto](https://github.com/andreumassanet/impasto) (Arch + Hyprland + Quickshell).
+My overlay on [impasto](https://github.com/andreumassanet/impasto) (Arch + Hyprland + Quickshell).
 
-Zasada: `~/impasto` jest **czystym klonem autora** (`origin` = `andreumassanet/impasto`, zero własnych commitów),
-a wszystko moje leży tutaj i jest nakładane na wierzch. Dzięki temu aktualizacje idą od autora.
+The rule: `~/impasto` is a **clean clone of the author's repo** (`origin` = `andreumassanet/impasto`, no commits of my own),
+and everything of mine lives here and is applied on top. That way updates keep coming from the author.
 
-| Co | Gdzie w repo | Dokąd trafia |
+| What | Where in this repo | Where it goes |
 |---|---|---|
-| skróty, reguły okien, klawiatura, env (NVIDIA) | `hypr-custom/*.lua` | `~/.config/hypr/custom/` (autor tego katalogu nie rusza) |
-| zmiany w Quickshell (przyciski paska, tooltip, dock) | `patches/quickshell/*.patch` | nakładane na `~/.config/quickshell` |
-| dodatkowe paczki | `packages/pacman.txt`, `aur.txt` | instalowane ponad listę autora |
-| skrypty i timery | `bin/`, `systemd/` | `~/.local/bin`, `~/sw.sh`, `~/.config/systemd/user` |
-| greeting kitty | `home/zshrc.local` | `~/.zshrc.local` |
+| keybinds, window rules, keyboard layout, env (NVIDIA) | `hypr-custom/*.lua` | `~/.config/hypr/custom/` (the author never touches this directory) |
+| Quickshell changes (bar buttons, tooltip, dock) | `patches/quickshell/*.patch` | applied to `~/.config/quickshell` |
+| extra packages | `packages/pacman.txt`, `aur.txt` | installed on top of the author's list |
+| scripts and timers | `bin/`, `systemd/` | `~/.local/bin`, `~/sw.sh`, `~/.config/systemd/user` |
+| kitty greeting | `home/zshrc.local` | `~/.zshrc.local` |
 | system (snapper, Limine, mkinitcpio, mirrorlist) | `bootstrap.sh` | `/etc`, `/boot` |
-| narzędzia i domyślne aplikacje | `finish.sh`, `config/`, `applications/`, `icons/` | `~` |
+| tools and default applications | `finish.sh`, `config/`, `applications/`, `icons/` | `~` |
 
-Skrypty: `bootstrap.sh` (faza systemowa), `finish.sh` (faza w sesji), `apply.sh` (nałóż nakładkę, idempotentny),
-`update.sh` (aktualizacja od autora + nakładka).
+Scripts: `bootstrap.sh` (system phase), `finish.sh` (in-session phase), `apply.sh` (apply the overlay, idempotent),
+`update.sh` (update from the author + the overlay).
 
 ---
 
-## Nowa maszyna
+## New machine
 
-Wymagania: Arch zainstalowany przez `archinstall` z **btrfs**, bootloaderem **Limine** (ESP zamontowane jako `/boot`),
-NetworkManagerem i zwykłym użytkownikiem z sudo. `bootstrap.sh` sprawdza to na starcie i przerywa, jeśli coś się nie zgadza.
+Requirements: Arch installed with `archinstall` using **btrfs**, the **Limine** bootloader (ESP mounted at `/boot`),
+NetworkManager and a regular user with sudo. `bootstrap.sh` checks this at startup and aborts if something does not match.
 
-1. Zaloguj się na TTY jako zwykły użytkownik i sklonuj oba repo:
+1. Log in on a TTY as a regular user and clone both repos:
 
    ```sh
    git clone https://github.com/andreumassanet/impasto ~/impasto
    git clone https://github.com/Magiszonekk/impasto-local ~/impasto-local
    ```
 
-2. Faza systemowa (z TTY, nie z sesji graficznej):
+2. The system phase (from a TTY, not from a graphical session):
 
    ```sh
    ~/impasto-local/bootstrap.sh
    ```
 
-   Robi: multilib, polską klawiaturę (TTY i SDDM), **przypięty mirrorlist** (Arch Linux Archive, domyślnie „wczoraj”),
-   snapper + snap-pac + limine-snapper-sync, `btrfs-overlayfs`, `/etc/default/limine`, zram, skrypty użytkownika
-   i timery, sterownik NVIDIA tylko jeśli wykryje kartę NVIDIA, `hyprland` i `kitty`, snapshot bazowy.
-   Jest idempotentny, więc można uruchomić ponownie.
+   It sets up: multilib, a Polish keyboard (TTY and SDDM), a **pinned mirrorlist** (Arch Linux Archive, "yesterday" by default),
+   snapper + snap-pac + limine-snapper-sync, `btrfs-overlayfs`, `/etc/default/limine`, zram, the user scripts
+   and timers, the NVIDIA driver only if it detects an NVIDIA card, `hyprland` and `kitty`, and a baseline snapshot.
+   It is idempotent, so it can be run again.
 
-   Zmienne (opcjonalne):
-   - `PIN_DATE=RRRR/MM/DD` – inna data przypięcia repozytoriów. **Hyprland musi być ≥ 0.56** w tym snapshocie.
-   - `KEYMAP=pl` – układ klawiatury konsoli i ekranu logowania.
-   - `WIN_UUID=… UBUNTU_UUID=…` – partycje innych systemów do zamontowania w `/mnt/win` i `/mnt/ubuntu`
-     (puste = pominięte). UUID-y sprawdzisz przez `lsblk -o NAME,UUID,MODEL`. Wpisy Windows/Ubuntu w Limine robi
-     `bin/limine-dualboot` na podstawie NVRAM, więc dotyczy to tylko maszyn z dualbootem.
+   Variables (optional):
+   - `PIN_DATE=YYYY/MM/DD` - a different date to pin the repositories to. **Hyprland must be ≥ 0.56** in that snapshot.
+   - `KEYMAP=pl` - the keyboard layout of the console and the login screen.
+   - `WIN_UUID=… UBUNTU_UUID=…` - partitions of other systems to mount at `/mnt/win` and `/mnt/ubuntu`
+     (empty = skipped). Find the UUIDs with `lsblk -o NAME,UUID,MODEL`. The Windows/Ubuntu entries in Limine are made by
+     `bin/limine-dualboot` from NVRAM, so this only concerns dual-boot machines.
 
-3. `sudo reboot`. Sprawdź w menu Limine wpis „Arch Linux” i podmenu Snapshots, a po starcie `efibootmgr`
-   (firmware potrafi przestawić kolejność bootowania).
+3. `sudo reboot`. In the Limine menu check the "Arch Linux" entry and its Snapshots submenu, and after boot run `efibootmgr`
+   (firmware may reorder the boot order).
 
-4. Uruchom Hyprland (`start-hyprland`), w kitty:
+4. Start Hyprland (`start-hyprland`), then in kitty:
 
    ```sh
    ~/impasto-local/finish.sh
    ```
 
-   Robi: snapshot, `./setup install` w `~/impasto`, **potem** `apply.sh` (hypr `custom/`, łatki, paczki),
-   splash Plymouth (ręcznie przez `/etc/default/limine`, bo `./setup splash` edytuje generowany `limine.conf`),
-   Claude Code, Hermes Agent, herdr, Discordrive (AppImage) oraz domyślne aplikacje i układ paska.
-   Trwa kilka minut (kompilacja pluginów Hyprlanda).
+   It does: a snapshot, `./setup install` in `~/impasto`, **then** `apply.sh` (hypr `custom/`, patches, packages),
+   the Plymouth splash (by hand through `/etc/default/limine`, because `./setup splash` edits the generated `limine.conf`),
+   Claude Code, Hermes Agent, herdr, Discordrive (AppImage), and the default applications and bar layout.
+   It takes a few minutes (the Hyprland plugins are compiled).
 
-5. Ręcznie zostaje: logowanie (`claude`, `hermes setup`), Spotify (uruchom raz, potem `~/impasto/setup spotify`),
-   wylogowanie i zalogowanie, żeby pasek wczytał układ.
+5. Left to do by hand: logging in (`claude`, `hermes setup`), Spotify (run it once, then `~/impasto/setup spotify`),
+   and logging out and back in so the bar loads its layout.
 
-> `finish.sh` uruchamiaj z sesji Hyprland. Poza nią przerywa, bo pluginy są budowane pod działający kompozytor.
+> Run `finish.sh` from a Hyprland session. Outside one it aborts, because the plugins are built against the running compositor.
 
 ---
 
-## Migracja ze starej wersji
+## Migrating from the old version
 
-„Stara wersja” = `~/impasto` jest klonem **mojego forka** `Magiszonekk/impasto` (z własnymi commitami i edytowanymi
-plikami autora), a nie czystym klonem autora.
+"The old version" = `~/impasto` is a clone of **my fork** `Magiszonekk/impasto` (with my own commits and edited
+files of the author's), rather than a clean clone of the author's repo.
 
-Przed czymkolwiek:
+Before anything else:
 
 ```sh
-sudo snapper -c root create -d "przed migracją na impasto-local" --print-number
+sudo snapper -c root create -d "before migrating to impasto-local" --print-number
 cd ~/impasto
-git status -sb                      # niewypchnięte commity? wypchnij je do forka, zostaną jako archiwum
-git branch backup/pre-split         # lokalne zabezpieczenie
+git status -sb                      # unpushed commits? push them to the fork, they stay there as an archive
+git branch backup/pre-split         # a local safety net
 git bundle create ~/impasto-pre-split.bundle --all
 ```
 
-1. **Przepnij `~/impasto` na autora.** `checkout -B` jest tu jedyną operacją, której samym gitem nie cofniesz
-   (dlatego backup powyżej):
+1. **Point `~/impasto` at the author.** `checkout -B` is the one operation here that git alone cannot undo
+   (hence the backup above):
 
    ```sh
    cd ~/impasto
@@ -98,72 +98,73 @@ git bundle create ~/impasto-pre-split.bundle --all
    git branch -u origin/main
    ```
 
-2. **Przywróć pliki, które edytowałeś, do wersji autora.** Inaczej `setup` zachowa Twoje edycje, a nową wersję
-   położy obok jako `.new`, i łatki quickshella nigdy nie złapią nowych plików. Twoje wersje trafiają
-   do kopii w `~/.local/state/impasto/backups/<data>`.
+2. **Put the files you edited back to the author's version.** Otherwise `setup` keeps your edits and puts the new
+   version beside them as `.new`, and the quickshell patches will never catch the new files. Your versions go
+   to a copy in `~/.local/state/impasto/backups/<date>`.
 
    ```sh
    cd ~/impasto
-   ./setup files list                                   # co jest „edited”
+   ./setup files list                                   # what is "edited"
    ./setup files list | python3 -c 'import json,sys; print(*[e["path"] for e in json.load(sys.stdin)["edited"]])' \
        | xargs -r ./setup files reset
-   ./setup files list                                   # ma pokazać puste "edited"
+   ./setup files list                                   # "edited" should now be empty
    ```
 
-   Jeśli coś w tych plikach było Twoje i nie ma go w `hypr-custom/` ani w `patches/`, weź to z kopii
-   w `backups/` zanim pójdziesz dalej.
+   If anything in those files was yours and is not in `hypr-custom/` or `patches/`, take it from the copy
+   in `backups/` before going on.
 
-3. **Sklonuj nakładkę i zaktualizuj.** `update.sh` robi `setup update` od autora, a potem `apply.sh`:
+3. **Clone the overlay and update.** `update.sh` runs `setup update` from the author, then `apply.sh`:
 
    ```sh
    git clone https://github.com/Magiszonekk/impasto-local ~/impasto-local
    ~/impasto-local/update.sh
    ```
 
-   `apply.sh` przy okazji instaluje skrypty z `bin/` i timery, więc stare wersje na migrowanej maszynie
-   zostaną zastąpione. Kończy się przeładowaniem Hyprlanda i sprawdzeniem `hyprctl configerrors`.
+   `apply.sh` also installs the scripts from `bin/` and the timers, so old versions on a migrated machine
+   get replaced. It ends by reloading Hyprland and checking `hyprctl configerrors`.
 
-4. **Posprzątaj po starym układzie** (opcjonalnie):
-   - `vscodium-bin` i `zen-browser-bin` dołoży teraz `./setup install` autora. Jeśli ich nie chcesz:
-     `yay -Rns vscodium-bin zen-browser-bin`. Nakładka nie umie ich ukryć przed `setup`.
-   - Stare pliki `*.bak*` w `~/.config`.
-   - Remote `fork` możesz zostawić albo usunąć: `git remote remove fork`.
+4. **Clean up after the old layout** (optional):
+   - `vscodium-bin` and `zen-browser-bin` will now be added by the author's `./setup install`. If you do not want them:
+     `yay -Rns vscodium-bin zen-browser-bin`. The overlay cannot hide them from `setup`.
+   - Old `*.bak*` files in `~/.config`.
+   - You can keep the `fork` remote or remove it: `git remote remove fork`.
 
-5. `sudo reboot`, jeśli `setup` napisał o wymienionych bibliotekach.
+5. `sudo reboot`, if `setup` said that libraries were replaced.
 
-Po migracji sprawdź:
+After the migration, check:
 
 ```sh
-cd ~/impasto && git remote -v && ./setup files list    # origin = autor; edited tylko 3 pliki z patches/
-hyprctl configerrors                                   # puste
+cd ~/impasto && git remote -v && ./setup files list    # origin = the author; "edited" only the 3 files from patches/
+hyprctl configerrors                                   # empty
 ```
 
 ---
 
-## Aktualizacje
+## Updates
 
 ```sh
 ~/impasto-local/update.sh
 ```
 
-Nie używaj `./setup update` ani przycisku Update w Ustawieniach → System. Przycisk wywołuje `~/impasto/setup update`
-bez nakładki: trzy pliki quickshell z łatek zostaną wtedy po staremu, a nowa wersja autora wyląduje obok jako `.new`.
-Zakładka Updates poprawnie pokazuje za to, że autor ma nowości, bo porównuje `~/impasto` z `origin`.
+Do not use `./setup update` or the Update button in Settings → System. The button runs `~/impasto/setup update`
+without the overlay: the three quickshell files from the patches then stay as they were, and the author's new version
+lands beside them as `.new`. The Updates tab does correctly show that the author has news, because it compares
+`~/impasto` with `origin`.
 
-`update.sh` odmawia pracy, jeśli `~/impasto` ma lokalne zmiany albo `origin` nie wskazuje na autora.
-Jeśli `apply.sh` napisze `NIE PASUJE <plik>.patch`, autor zmienił ten fragment pliku: popraw łatkę
-(nałóż ją `git apply --3way` w świeżym `git worktree` z `origin/main`, a nową zrób przez `git diff HEAD`).
+`update.sh` refuses to work if `~/impasto` has local changes or `origin` does not point at the author.
+If `apply.sh` says `DOES NOT APPLY <file>.patch`, the author changed that part of the file: fix the patch
+(apply it with `git apply --3way` in a fresh `git worktree` of `origin/main`, then make the new one with `git diff HEAD`).
 
-Aktualizacje paczek systemowych idą osobno przez `sys-update` (przypięty mirrorlist, miesięczny cykl).
+System package updates go separately through `sys-update` (a pinned mirrorlist, a monthly cycle).
 
-## Nowe zmiany
+## New changes
 
-Nie edytuj plików w `~/impasto`. Skróty, reguły okien i env dopisuj w `hypr-custom/` (ładowane po module
-autora, więc przeniesienie cudzego skrótu na inny klawisz wymaga `hl.unbind(...)` przed własnym `hl.bind`).
-Zmiany w Quickshell rób jako nowa łatka w `patches/quickshell/`. Różnice sprzętowe wykrywaj w czasie działania
-(`/sys`, `/proc/driver/nvidia`), a nie osobnymi gałęziami.
+Do not edit files in `~/impasto`. Add keybinds, window rules and env to `hypr-custom/` (loaded after the author's
+module, so moving someone else's keybind to a different key needs `hl.unbind(...)` before your own `hl.bind`).
+Make Quickshell changes as a new patch in `patches/quickshell/`. Detect hardware differences at run time
+(`/sys`, `/proc/driver/nvidia`) instead of using separate branches.
 
-## Co nie jest przetestowane
+## What is not tested
 
-Skrypty sprawdzono składniowo (`bash -n`), a `apply.sh` także w dwóch przebiegach na kopii czystych plików autora.
-Ścieżki **nowej maszyny** (`bootstrap.sh` + `finish.sh`) i **migracji** nie były uruchomione na czystym systemie.
+The scripts were checked for syntax (`bash -n`), and `apply.sh` also in two runs on a copy of the author's clean files.
+The **new machine** path (`bootstrap.sh` + `finish.sh`) and the **migration** have not been run on a clean system.

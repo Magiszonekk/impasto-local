@@ -1,2 +1,2 @@
-# Dodatkowe paczki z AUR (magiszonek).
-brave-bin                    # domyślna przeglądarka
+# Extra packages from the AUR (magiszonek).
+brave-bin                    # default browser

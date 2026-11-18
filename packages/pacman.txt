@@ -1,5 +1,5 @@
-# Dodatkowe paczki z repo Arch (magiszonek), poza listą autora impasto.
+# Extra packages from the Arch repos (magiszonek), on top of the impasto author's list.
 filezilla
-zed                          # domyślny edytor tekstu
+zed                          # default text editor
 fuse2                        # discordrive (AppImage)
-fuse3                        # discordrive: dysk wirtualny (fusermount3)
+fuse3                        # discordrive: virtual drive (fusermount3)

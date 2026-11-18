@@ -1,5 +1,5 @@
--- Lokalnie: NVIDIA (VA-API i GLX przez sterownik własnościowy), tylko gdy
--- moduł jest załadowany, więc na maszynach z samym AMD nic się nie dzieje.
+-- Local: NVIDIA (VA-API and GLX through the proprietary driver), only when the
+-- module is loaded, so on AMD-only machines nothing happens.
 local nvidia = io.open("/proc/driver/nvidia/version")
 if nvidia then
     nvidia:close()

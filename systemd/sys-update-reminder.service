@@ -1,5 +1,5 @@
 [Unit]
-Description=Przypomnienie o miesięcznym sys-update (tylko powiadomienie)
+Description=Reminder about the monthly sys-update (notification only)
 
 [Service]
 Type=oneshot

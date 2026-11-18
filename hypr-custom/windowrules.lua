@@ -1,4 +1,4 @@
--- Lokalne reguły okien (magiszonek): małe okna kitty z przycisków na pasku.
+-- Local window rules (magiszonek): small kitty windows opened from the bar buttons.
 local function popup(name, class, w, h)
     hl.window_rule({
         name  = name,

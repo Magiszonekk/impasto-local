@@ -1,5 +1,5 @@
 [Unit]
-Description=Codzienne sprawdzenie, czy czas na sys-update
+Description=Daily check whether it is time for sys-update
 
 [Timer]
 OnCalendar=*-*-* 09:00:00

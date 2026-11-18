@@ -1,32 +1,32 @@
 #!/usr/bin/env bash
-# Faza 1: system. Uruchom z TTY na świeżym Archu (archinstall: btrfs + Limine
-# w trybie ESP=/boot), jako zwykły użytkownik z sudo:
+# Phase 1: the system. Run from a TTY on a fresh Arch (archinstall: btrfs +
+# Limine with ESP=/boot), as a regular user with sudo:
 #   git clone https://github.com/andreumassanet/impasto ~/impasto
 #   git clone https://github.com/Magiszonekk/impasto-local ~/impasto-local
 #   ~/impasto-local/bootstrap.sh
-# Potem uruchom Hyprland i odpal ~/impasto-local/finish.sh.
-# Repo autora (~/impasto) jest czystym klonem; moje zmiany są w tym repo.
+# Then start Hyprland and run ~/impasto-local/finish.sh.
+# The author's repo (~/impasto) stays a clean clone; my changes are in this repo.
 #
-# Odtwarza: snapper + snap-pac, limine-snapper-sync, btrfs-overlayfs,
-# /etc/default/limine, wpisy Windows/Ubuntu z innej partycji ESP
-# (bin/limine-dualboot), multilib, sterownik NVIDIA z wczesnym KMS, polską
-# klawiaturę (TTY i SDDM), /mnt/win i /mnt/ubuntu, przypięty mirrorlist
-# (Arch Linux Archive), okno sudo, a na końcu hyprland i kitty do kroku 3.
-# Skrypt jest idempotentny: kroki, które już są zrobione, pomija.
-# PIN_DATE=RRRR/MM/DD ./bootstrap.sh  -> inna data niż "wczoraj".
+# Sets up: snapper + snap-pac, limine-snapper-sync, btrfs-overlayfs,
+# /etc/default/limine, Windows/Ubuntu entries from another ESP partition
+# (bin/limine-dualboot), multilib, the NVIDIA driver with early KMS, a Polish
+# keyboard (TTY and SDDM), /mnt/win and /mnt/ubuntu, a pinned mirrorlist
+# (Arch Linux Archive), the sudo window, and finally hyprland and kitty.
+# The script is idempotent: steps that are already done are skipped.
+# PIN_DATE=YYYY/MM/DD ./bootstrap.sh  -> a date other than "yesterday".
 set -euo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PIN_DATE=${PIN_DATE:-$(date -d yesterday +%Y/%m/%d)}
 ARCHIVE=https://archive.archlinux.org/repos
 USER_NAME=$(id -un)
-# Układ klawiatury: konsola (vconsole) i X11 (ekran logowania SDDM).
-# Hyprland ma swój w hypr-custom/input.lua.
+# Keyboard layout: console (vconsole) and X11 (SDDM login screen).
+# Hyprland has its own in hypr-custom/input.lua.
 KEYMAP=${KEYMAP:-pl}
-# Partycje innych systemów do podmontowania (pusta wartość = pomiń).
+# Partitions of other systems to mount (an empty value = skip).
 WIN_UUID=${WIN_UUID-}
 UBUNTU_UUID=${UBUNTU_UUID-}
-# Karta NVIDIA (vendor 0x10de, klasa 0x03xxxx = kontroler grafiki)?
+# An NVIDIA card (vendor 0x10de, class 0x03xxxx = display controller)?
 NVIDIA=no
 for d in /sys/bus/pci/devices/*; do
     [[ $(<"$d/vendor") == 0x10de && $(<"$d/class") == 0x03* ]] && NVIDIA=yes && break
@@ -35,12 +35,12 @@ done
 b=$'\e[1m'; y=$'\e[33m'; r=$'\e[31m'; o=$'\e[0m'
 step() { printf '\n%s==> %s%s\n' "$b" "$*" "$o"; }
 warn() { printf '%s%s%s\n' "$y" "$*" "$o"; }
-die()  { printf '%sBŁĄD:%s %s\n' "$r" "$o" "$*" >&2; exit 1; }
+die()  { printf '%sERROR:%s %s\n' "$r" "$o" "$*" >&2; exit 1; }
 
-[[ $EUID -ne 0 ]] || die "uruchom jako zwykły użytkownik (sudo woła sam skrypt)"
-[[ $(findmnt -no FSTYPE /) == btrfs ]] || die "root nie jest na btrfs, snapshoty nie zadziałają"
-command -v limine >/dev/null || die "brak limine. Ten skrypt zakłada bootloader Limine z archinstall"
-mountpoint -q /boot || die "/boot nie jest osobnym montowaniem (ESP). Oczekiwano ESP=/boot"
+[[ $EUID -ne 0 ]] || die "run as a regular user (the script calls sudo itself)"
+[[ $(findmnt -no FSTYPE /) == btrfs ]] || die "root is not on btrfs, snapshots will not work"
+command -v limine >/dev/null || die "limine is missing. This script expects the Limine bootloader from archinstall"
+mountpoint -q /boot || die "/boot is not a separate mount (ESP). Expected ESP=/boot"
 sudo -v
 
 step "multilib"
@@ -48,26 +48,26 @@ if ! grep -qE '^\[multilib\]' /etc/pacman.conf; then
     sudo cp /etc/pacman.conf /etc/pacman.conf.bak
     sudo sed -i -E '/^#\[multilib\]$/,/^#Include/ s/^#//' /etc/pacman.conf
 fi
-grep -qE '^\[multilib\]' /etc/pacman.conf || die "nie udało się włączyć multilib w /etc/pacman.conf"
+grep -qE '^\[multilib\]' /etc/pacman.conf || die "could not enable multilib in /etc/pacman.conf"
 
-step "Klawiatura: $KEYMAP (konsola i ekran logowania)"
-# przed mkinitcpio: hook keymap/sd-vconsole wkłada ten układ do initramfs
+step "Keyboard: $KEYMAP (console and login screen)"
+# before mkinitcpio: the keymap/sd-vconsole hook puts this layout into the initramfs
 sudo localectl set-keymap "$KEYMAP"
 sudo localectl set-x11-keymap --no-convert "$KEYMAP"
 localectl status | grep -E 'VC Keymap|X11 Layout'
 
-step "Przypięcie repozytoriów do $PIN_DATE"
+step "Pinning the repositories to $PIN_DATE"
 code=$(curl -s -o /dev/null -w '%{http_code}' "$ARCHIVE/$PIN_DATE/core/os/x86_64/core.db" || true)
-[[ $code == 200 ]] || die "snapshot $PIN_DATE nie istnieje w archiwum (HTTP $code); podaj PIN_DATE"
+[[ $code == 200 ]] || die "snapshot $PIN_DATE does not exist in the archive (HTTP $code); set PIN_DATE"
 [[ -e /etc/pacman.d/mirrorlist.rolling ]] || sudo cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.rolling
 echo "Server = $ARCHIVE/$PIN_DATE/\$repo/os/\$arch" | sudo tee /etc/pacman.d/mirrorlist >/dev/null
 sudo systemctl disable --now reflector.timer 2>/dev/null || true
 sudo pacman -Sy --noconfirm
 hv=$(pacman -Si hyprland 2>/dev/null | awk '/^Version/{print $3}')
-echo "hyprland w tym snapshocie: ${hv:-brak}"
-case ${hv:-0} in 0.5[6-9]*|0.[6-9]*|[1-9]*) ;; *) warn "impasto wymaga hyprland >= 0.56; wybierz późniejszą PIN_DATE" ;; esac
+echo "hyprland in this snapshot: ${hv:-none}"
+case ${hv:-0} in 0.5[6-9]*|0.[6-9]*|[1-9]*) ;; *) warn "impasto needs hyprland >= 0.56; pick a later PIN_DATE" ;; esac
 
-step "Pakiety bazowe"
+step "Base packages"
 sudo pacman -S --needed --noconfirm git base-devel btrfs-progs snapper snap-pac \
     efibootmgr zram-generator inotify-tools \
     speedtest-cli tmux openssh nodejs npm ttf-dejavu
@@ -76,7 +76,7 @@ if [[ $NVIDIA == yes ]]; then
     sudo pacman -S --needed --noconfirm nvidia-open nvidia-utils lib32-nvidia-utils libva-nvidia-driver
 fi
 
-step "yay i narzędzia Limine z AUR"
+step "yay and the Limine tools from the AUR"
 if ! command -v yay >/dev/null; then
     tmp=$(mktemp -d)
     git clone https://aur.archlinux.org/yay-bin.git "$tmp/yay-bin"
@@ -89,12 +89,12 @@ step "Snapper"
 if ! sudo test -e /etc/snapper/configs/root; then
     if mountpoint -q /.snapshots; then sudo umount /.snapshots; fi
     sudo rmdir /.snapshots 2>/dev/null || true
-    [[ ! -e /.snapshots ]] || die "/.snapshots nie jest pusty, sprawdź ręcznie"
+    [[ ! -e /.snapshots ]] || die "/.snapshots is not empty, check by hand"
     sudo snapper -c root create-config /
     sudo btrfs subvolume delete /.snapshots
     sudo mkdir /.snapshots
     if ! grep -qE '[[:space:]]/\.snapshots[[:space:]]' /etc/fstab; then
-        # osobny subwolumen top-level @snapshots, żeby rollback @ go nie zabierał
+        # a separate top-level @snapshots subvolume, so a rollback of @ does not take it along
         src=$(findmnt -no SOURCE / | sed 's/\[.*//')
         uuid=$(sudo blkid -s UUID -o value "$src")
         top=$(mktemp -d)
@@ -108,14 +108,14 @@ if ! sudo test -e /etc/snapper/configs/root; then
     fi
     sudo systemctl daemon-reload
     sudo mount -a
-    mountpoint -q /.snapshots || die "/.snapshots się nie zamontował"
+    mountpoint -q /.snapshots || die "/.snapshots did not mount"
     sudo chmod 750 /.snapshots
 fi
 sudo snapper -c root set-config TIMELINE_CREATE=no NUMBER_CLEANUP=yes \
     NUMBER_LIMIT=10 NUMBER_LIMIT_IMPORTANT=5 SYNC_ACL=yes "ALLOW_USERS=$USER_NAME"
 sudo systemctl enable --now snapper-cleanup.timer
 
-step "mkinitcpio: btrfs-overlayfs, bez fallbacku (ESP ma mało miejsca)"
+step "mkinitcpio: btrfs-overlayfs, no fallback (the ESP has little space)"
 if ! grep -qE '^HOOKS=.*btrfs-overlayfs' /etc/mkinitcpio.conf; then
     sudo cp /etc/mkinitcpio.conf /root/mkinitcpio.conf.bak
     if grep -qE '^HOOKS=.*[( ]fsck' /etc/mkinitcpio.conf; then
@@ -128,8 +128,8 @@ grep -E '^HOOKS=' /etc/mkinitcpio.conf
 sudo sed -i -E "s/^PRESETS=.*/PRESETS=('default')/" /etc/mkinitcpio.d/linux.preset
 sudo rm -f /boot/initramfs-linux-fallback.img
 if [[ $NVIDIA == yes ]]; then
-    # wczesny KMS: splash i Hyprland od pierwszej klatki na nvidia_drm;
-    # hook kms wciągałby nouveau do initramfs
+    # early KMS: splash and Hyprland on nvidia_drm from the first frame;
+    # the kms hook would pull nouveau into the initramfs
     sudo install -m 644 /dev/stdin /etc/mkinitcpio.conf.d/nvidia.conf \
         <<< 'MODULES+=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)'
     sudo sed -i -E '/^HOOKS=/ s/ kms( |\))/\1/' /etc/mkinitcpio.conf
@@ -140,7 +140,7 @@ src=$(findmnt -no SOURCE / | sed 's/\[.*//')
 partuuid=$(lsblk -no PARTUUID "$src")
 extra=""
 [[ $NVIDIA == yes ]] && extra=" nvidia_drm.modeset=1 nvidia_drm.fbdev=1"
-[[ -n $partuuid ]] || die "brak PARTUUID dla $src"
+[[ -n $partuuid ]] || die "no PARTUUID for $src"
 [[ ! -e /etc/default/limine ]] || sudo cp -n /etc/default/limine /root/limine.default.bak
 sudo tee /etc/default/limine >/dev/null <<EOF
 ESP_PATH="/boot"
@@ -155,27 +155,27 @@ sudo limine-update
 sudo systemctl enable --now limine-snapper-sync.service
 sudo rm -f /boot/vmlinuz-linux /boot/initramfs-linux.img
 
-# FIND_BOOTLOADERS szuka tylko w ESP_PATH (/boot), a Windows i Ubuntu mają
-# bootloadery na innej partycji ESP; znajdował tylko własny fallback Limine.
-# Wpisy chainload robi limine-dualboot na podstawie NVRAM.
-step "Limine: Windows i Ubuntu (chainload z innej partycji ESP)"
-sudo "$HERE/bin/limine-dualboot" || warn "limine-dualboot nie zadziałał; dodaj wpisy ręcznie w /boot/limine.conf"
+# FIND_BOOTLOADERS only searches ESP_PATH (/boot), while Windows and Ubuntu
+# have their bootloaders on another ESP partition; it only found Limine's own
+# fallback. The chainload entries are made by limine-dualboot from NVRAM.
+step "Limine: Windows and Ubuntu (chainload from another ESP partition)"
+sudo "$HERE/bin/limine-dualboot" || warn "limine-dualboot failed; add the entries by hand in /boot/limine.conf"
 
-step "Partycje Windowsa i Ubuntu"
-add_mount() { # uuid katalog typ opcje
+step "Windows and Ubuntu partitions"
+add_mount() { # uuid directory type options
     [[ -n $1 ]] || return 0
-    if ! sudo blkid -U "$1" >/dev/null; then warn "brak partycji UUID=$1, pomijam $2"; return 0; fi
+    if ! sudo blkid -U "$1" >/dev/null; then warn "no partition with UUID=$1, skipping $2"; return 0; fi
     grep -q "UUID=$1" /etc/fstab && return 0
     sudo mkdir -p "$2"
     [[ -e /etc/fstab.bak ]] || sudo cp /etc/fstab /etc/fstab.bak
     printf 'UUID=%s\t%s\t%s\t%s\t0 0\n' "$1" "$2" "$3" "$4" | sudo tee -a /etc/fstab >/dev/null
 }
-# Windows tylko do odczytu: zapis do NTFS bezpieczny dopiero po wyłączeniu
-# Fast Startup w Windowsie (wtedy zmień ro na rw w /etc/fstab).
+# Windows is read-only: writing to NTFS is only safe once Fast Startup is
+# turned off in Windows (then change ro to rw in /etc/fstab).
 add_mount "$WIN_UUID" /mnt/win ntfs3 "ro,nofail,x-systemd.device-timeout=5s,uid=$(id -u),gid=$(id -g),iocharset=utf8"
 add_mount "$UBUNTU_UUID" /mnt/ubuntu ext4 "rw,nofail,noatime,x-systemd.device-timeout=5s"
 sudo systemctl daemon-reload
-sudo mount -a || warn "mount -a zgłosił błąd, sprawdź /etc/fstab"
+sudo mount -a || warn "mount -a reported an error, check /etc/fstab"
 
 step "zram"
 if [[ ! -e /etc/systemd/zram-generator.conf ]]; then
@@ -183,24 +183,24 @@ if [[ ! -e /etc/systemd/zram-generator.conf ]]; then
         | sudo tee /etc/systemd/zram-generator.conf >/dev/null
 fi
 
-step "Okno sudo bez hasła i skrypty użytkownika"
-# bin/, systemd/ i ~/sw.sh instaluje apply.sh (te same pliki co przy update)
+step "Passwordless sudo window and user scripts"
+# apply.sh installs bin/, systemd/ and ~/sw.sh (the same files as on update)
 "$HERE/apply.sh" --scripts-only
 sudo install -m 440 /dev/stdin /etc/sudoers.d/98-sudo-window-include <<< '@includedir /run/sudo-window'
 sudo visudo -c >/dev/null && echo "sudoers OK"
 
-# Krok 3 poniżej (start-hyprland, kitty) potrzebuje ich przed ./setup install.
-step "Hyprland i kitty"
+# Starting Hyprland (start-hyprland, kitty) needs these before ./setup install.
+step "Hyprland and kitty"
 sudo pacman -S --needed --noconfirm hyprland kitty
 
-step "Snapshot bazowy"
-sudo snapper -c root create -d "czysta instalacja (bootstrap)" --print-number
+step "Baseline snapshot"
+sudo snapper -c root create -d "clean install (bootstrap)" --print-number
 
 cat <<EOF
 
-${b}Gotowe.${o} Dalej:
-  1. sudo reboot, sprawdź w menu Limine wpis "Arch Linux", podmenu Snapshots
-     oraz wpisy Windows Boot Manager i Ubuntu,
-  2. sprawdź kolejność: efibootmgr (firmware potrafi ją przestawić),
-  3. uruchom Hyprland (start-hyprland), w kitty: ~/impasto-local/finish.sh
+${b}Done.${o} Next:
+  1. sudo reboot, check the Limine menu for the "Arch Linux" entry, its Snapshots
+     submenu and the Windows Boot Manager and Ubuntu entries,
+  2. check the boot order: efibootmgr (firmware may reorder it),
+  3. start Hyprland (start-hyprland), then in kitty: ~/impasto-local/finish.sh
 EOF

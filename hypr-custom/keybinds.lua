@@ -1,21 +1,21 @@
--- Lokalne skróty (magiszonek). Ładowane po modules/keybinds.lua autora,
--- `setup update` tego katalogu nie rusza. Kopiowane tu przez apply.sh.
+-- Local keybinds (magiszonek). Loaded after the author's modules/keybinds.lua;
+-- `setup update` never touches this directory. Copied here by apply.sh.
 local mainMod = "SUPER"
 
--- · aplikacje
+-- · applications
 hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("spotify"), { description = "Applications · Open Spotify" })
 hl.bind(mainMod .. " + D", hl.dsp.exec_cmd("vesktop"), { description = "Applications · Open Discord (Vesktop)" })
 hl.bind("CTRL + SHIFT + Escape", hl.dsp.exec_cmd("kitty --class impasto-btop -e btop"),
         { description = "Applications · Open btop" })
 
--- · pełny ekran bez wiedzy aplikacji (przeglądarka zachowuje karty). Bind
--- · autora trzeba zdjąć, bo ten z custom/ działa dopiero po nim.
+-- · fullscreen without the app knowing (the browser keeps its tabs). The
+-- · author's bind has to be removed, since the one from custom/ only runs after it.
 hl.unbind(mainMod .. " + F")
 hl.bind(mainMod .. " + F",
         hl.dsp.window.fullscreen_state({ internal = 2, client = 0, action = "toggle" }),
         { description = "Windows · Full screen (app unaware, so browser keeps its tabs)" })
 
--- · tryb zmiany rozmiaru: SUPER+R, potem strzałki lub h/j/k/l, Esc/Enter wychodzi
+-- · resize mode: SUPER+R, then arrows or h/j/k/l, Esc/Enter leaves
 local RESIZE_STEP = 40
 local function resize_by(x, y)
     return hl.dsp.window.resize({ x = x, y = y, relative = true })
