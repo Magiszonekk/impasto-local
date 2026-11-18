@@ -18,6 +18,9 @@ for f in "$HERE"/hypr-custom/*.lua; do
     install -m 644 "$f" "$HYPR/custom/$(basename "$f")"; echo "ok  $(basename "$f")"
 done
 
+step "zsh: ~/.zshrc.local"
+install -m 644 "$HERE/home/zshrc.local" "$HOME/.zshrc.local"; echo "ok  .zshrc.local"
+
 if [[ ${1:-} != --no-packages ]]; then
     step "Paczki"
     mapfile -t pac < <(sed 's/#.*//' "$HERE/packages/pacman.txt" | awk 'NF{print $1}')

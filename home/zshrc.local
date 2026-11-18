@@ -1,0 +1,7 @@
+# Lokalnie (magiszonek), ładowane z końca ~/.zshrc autora.
+# · greeting na każdym nowym oknie kitty (animacja + system info). Tylko w
+#   kitty: icat nie działa w tmux/herdr ani przez ssh. Wyłączenie: touch ~/.config/no-greeting
+if [[ -o interactive && -n $KITTY_WINDOW_ID && -z $TMUX && -z $HERDR_ENV && -z $SSH_TTY \
+      && ! -e ~/.config/no-greeting ]]; then
+    fa
+fi
