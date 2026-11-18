@@ -6,7 +6,7 @@ set -euo pipefail
 
 MIRRORLIST=/etc/pacman.d/mirrorlist
 ARCHIVE=https://archive.archlinux.org/repos
-# Katalog z impasto (fork). Uzupełnij po instalacji impasto.
+# Katalog z impasto (czysty klon autora; moje zmiany są w ~/impasto-local).
 IMPASTO_DIR="${IMPASTO_DIR:-$HOME/impasto}"
 # Komenda przebudowy pluginów Hyprlanda w impasto (uzupełnić po przeczytaniu ./setup).
 IMPASTO_REBUILD_CMD="${IMPASTO_REBUILD_CMD:-./setup plugins}"

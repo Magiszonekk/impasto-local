@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Faza 2: z wnętrza działającej sesji Hyprland (impasto buduje pluginy pod
-# działający kompozytor). Robi: ./setup install, narzędzia użytkownika
-# (Claude Code, Hermes, herdr), domyślne aplikacje i układ paska.
+# działający kompozytor). Robi: ./setup install w ~/impasto (czysty klon
+# autora), potem apply.sh (nakładka), narzędzia użytkownika (Claude Code,
+# Hermes, herdr), domyślne aplikacje i układ paska.
 # Idempotentny: ponowne uruchomienie jest bezpieczne.
 set -euo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-REPO=$(dirname "$HERE")
+REPO=${IMPASTO_DIR:-$HOME/impasto}
+[[ -x $REPO/setup ]] || { echo "brak $REPO/setup: git clone https://github.com/andreumassanet/impasto $REPO" >&2; exit 1; }
 
 b=$'\e[1m'; y=$'\e[33m'; o=$'\e[0m'
 step() { printf '\n%s==> %s%s\n' "$b" "$*" "$o"; }
@@ -20,6 +22,9 @@ sudo snapper -c root create -d "przed impasto (finish.sh)" --print-number
 
 step "impasto: ./setup install"
 (cd "$REPO" && ./setup install --noconfirm)
+
+step "Nakładka: apply.sh (hypr custom/, łatki quickshell, paczki)"
+"$HERE/apply.sh" || warn "apply.sh zgłosił problem (np. łatka nie pasuje); popraw i uruchom ./apply.sh ponownie"
 
 # Splash: ./setup splash edytuje generowany /boot/limine.conf, więc robimy to
 # przez /etc/default/limine i blokujemy ten krok stampem.
@@ -76,6 +81,7 @@ cat <<EOF
 
 ${b}Gotowe.${o} Ręcznie zostaje:
   - logowanie: claude (konto), hermes setup (klucze API/provider), Spotify (uruchom raz, potem ./setup spotify)
-  - Brave/Zed/FileZilla są w packages/ (local), więc ./setup install je już postawił
+  - Brave/Zed/FileZilla stawia apply.sh z packages/ nakładki
+  - aktualizacje od autora: ~/impasto-local/update.sh (nie ./setup update ani przycisk w Ustawieniach)
   - wyloguj się i zaloguj, żeby pasek wczytał układ; sys-update sprawdzisz poleceniem: sys-update
 EOF

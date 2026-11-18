@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Faza 1: system. Uruchom z TTY na świeżym Archu (archinstall: btrfs + Limine
 # w trybie ESP=/boot), jako zwykły użytkownik z sudo:
-#   git clone <fork> ~/impasto && ~/impasto/local/bootstrap.sh
-# Potem uruchom Hyprland i odpal local/finish.sh.
+#   git clone https://github.com/andreumassanet/impasto ~/impasto
+#   git clone https://github.com/Magiszonekk/impasto-local ~/impasto-local
+#   ~/impasto-local/bootstrap.sh
+# Potem uruchom Hyprland i odpal ~/impasto-local/finish.sh.
+# Repo autora (~/impasto) jest czystym klonem; moje zmiany są w tym repo.
 #
 # Odtwarza: snapper + snap-pac, limine-snapper-sync, btrfs-overlayfs,
 # /etc/default/limine, wpisy Windows/Ubuntu z innej partycji ESP
@@ -18,7 +21,7 @@ PIN_DATE=${PIN_DATE:-$(date -d yesterday +%Y/%m/%d)}
 ARCHIVE=https://archive.archlinux.org/repos
 USER_NAME=$(id -un)
 # Układ klawiatury: konsola (vconsole) i X11 (ekran logowania SDDM).
-# Hyprland ma swój w home/.config/hypr/modules/input.lua.
+# Hyprland ma swój w hypr-custom/input.lua.
 KEYMAP=${KEYMAP:-pl}
 # Partycje innych systemów do podmontowania (pusta wartość = pomiń).
 WIN_UUID=${WIN_UUID-}
@@ -181,15 +184,8 @@ if [[ ! -e /etc/systemd/zram-generator.conf ]]; then
 fi
 
 step "Okno sudo bez hasła i skrypty użytkownika"
-mkdir -p ~/.local/bin
-install -m 755 "$HERE"/bin/sudo-window "$HERE"/bin/sys-update "$HERE"/bin/speedtest-window ~/.local/bin/
-install -m 755 "$HERE"/bin/sw.sh ~/sw.sh
-install -m 755 "$HERE"/bin/sys-update-reminder "$HERE"/bin/tools-autoupdate ~/.local/bin/
-mkdir -p ~/.config/systemd/user
-install -m 644 "$HERE"/systemd/*.service "$HERE"/systemd/*.timer ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable sys-update-reminder.timer tools-autoupdate.timer 2>/dev/null \
-    || warn "timery: włącz po zalogowaniu do sesji: systemctl --user enable --now sys-update-reminder.timer tools-autoupdate.timer"
+# bin/, systemd/ i ~/sw.sh instaluje apply.sh (te same pliki co przy update)
+"$HERE/apply.sh" --scripts-only
 sudo install -m 440 /dev/stdin /etc/sudoers.d/98-sudo-window-include <<< '@includedir /run/sudo-window'
 sudo visudo -c >/dev/null && echo "sudoers OK"
 
@@ -206,5 +202,5 @@ ${b}Gotowe.${o} Dalej:
   1. sudo reboot, sprawdź w menu Limine wpis "Arch Linux", podmenu Snapshots
      oraz wpisy Windows Boot Manager i Ubuntu,
   2. sprawdź kolejność: efibootmgr (firmware potrafi ją przestawić),
-  3. uruchom Hyprland (start-hyprland), w kitty: ~/impasto/local/finish.sh
+  3. uruchom Hyprland (start-hyprland), w kitty: ~/impasto-local/finish.sh
 EOF
