@@ -16,4 +16,8 @@ echo "==> restoring the patched files to the repo's version"
 echo "==> ./setup update"
 ./setup update "$@"
 echo "==> overlay"
-"$HERE/apply.sh" --no-packages
+rc=0
+"$HERE/apply.sh" --no-packages || rc=1
+echo "==> restarting quickshell"
+"$HERE/restart-shell.sh" || rc=1
+exit $rc

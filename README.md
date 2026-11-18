@@ -16,7 +16,7 @@ and everything of mine lives here and is applied on top. That way updates keep c
 | tools and default applications | `finish.sh`, `config/`, `applications/`, `icons/` | `~` |
 
 Scripts: `bootstrap.sh` (system phase), `finish.sh` (in-session phase), `apply.sh` (apply the overlay, idempotent),
-`update.sh` (update from the author + the overlay).
+`update.sh` (update from the author + the overlay + a Quickshell restart with a load check; the restart is also available alone as `restart-shell.sh`).
 
 ---
 
@@ -152,6 +152,9 @@ lands beside them as `.new`. The Updates tab does correctly show that the author
 `~/impasto` with `origin`.
 
 `update.sh` refuses to work if `~/impasto` has local changes or `origin` does not point at the author.
+It ends by restarting Quickshell (`restart-shell.sh`) and checking `qs log` that the new config really loaded:
+a reload that lands in the middle of an update can fail and silently leave the old code running (the bar and
+dock then behave as before the update). If it prints `the config did NOT load`, read `qs log`.
 If `apply.sh` says `DOES NOT APPLY <file>.patch`, the author changed that part of the file: fix the patch
 (apply it with `git apply --3way` in a fresh `git worktree` of `origin/main`, then make the new one with `git diff HEAD`).
 
